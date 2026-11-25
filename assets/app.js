@@ -296,7 +296,8 @@ function card(it) {
   if (estado.aba === 'pos' && MODALIDADE[it.modalidade]) tags.push(`<span class="tag">${MODALIDADE[it.modalidade]}</span>`);
 
   const botao = it.link
-    ? `<a class="botao" href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">Ver edital${icone('externo')}<span class="sr-only">: ${esc(it.titulo)} (abre em nova aba)</span></a>`
+    ? `<button type="button" class="botao-compartilhar" data-compartilhar="${it.id}" aria-label="Compartilhar ou copiar link: ${esc(it.titulo)}" title="Compartilhar ou copiar link">${icone('compartilhar')}</button>` +
+      `<a class="botao" href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">Ver edital${icone('externo')}<span class="sr-only">: ${esc(it.titulo)} (abre em nova aba)</span></a>`
     : '<span class="botao" aria-disabled="true">Sem link</span>';
 
   return `<li><article class="card${urgente ? ' is-urgente' : ''}${it.status === 'encerrado' ? ' is-encerrado' : ''}" aria-labelledby="${idTitulo}">
@@ -307,7 +308,7 @@ function card(it) {
     ${it.detalhe ? `<p class="card-detalhe">${esc(it.detalhe)}</p>` : ''}
     <div class="card-rodape">
       <span class="encontrado">${it.encontrado ? `Encontrado em <time datetime="${iso(it.encontrado)}">${fmtData.format(it.encontrado)}</time>` : ''}</span>
-      ${botao}
+      <div class="acoes">${botao}</div>
     </div>
   </article></li>`;
 }
@@ -435,6 +436,101 @@ function renderTudo() {
   renderPainel();
 }
 
+// ---------- compartilhar ----------
+let timerToast;
+function avisar(texto, ok = true) {
+  const t = $('#toast');
+  t.innerHTML = `${icone(ok ? 'ok' : 'alerta')}<span>${esc(texto)}</span>`;
+  t.classList.add('visivel');
+  clearTimeout(timerToast);
+  timerToast = setTimeout(() => t.classList.remove('visivel'), 2600);
+}
+
+async function copiar(texto) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    return true;
+  } catch {
+    // Alternativa para navegadores sem a API de área de transferência.
+    const ta = Object.assign(document.createElement('textarea'), { value: texto });
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.append(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { /* sem suporte */ }
+    ta.remove();
+    return ok;
+  }
+}
+
+// No celular abre a folha de compartilhamento do sistema (WhatsApp, e-mail…);
+// no computador copia o link direto.
+async function compartilhar({ titulo, texto, url, rotulo }) {
+  const toque = matchMedia('(pointer: coarse)').matches;
+  if (toque && navigator.share) {
+    try { await navigator.share({ title: titulo, text: texto, url }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  if (await copiar(url)) { avisar(`${rotulo} copiado`); return; }
+  // Último recurso: mostra o link selecionado para copiar à mão.
+  avisar('Copie o link na caixa aberta', false);
+  window.prompt(`${rotulo}:`, url);
+}
+
+function compartilharItem(id) {
+  const it = ABAS.flatMap((a) => estado.fontes[a].itens).find((i) => i.id === id);
+  if (!it?.link) return;
+  const prazo = it.prazo && it.status !== 'encerrado' ? ` · inscrições até ${fmtData.format(it.prazo)}` : '';
+  compartilhar({ titulo: it.titulo, texto: `${it.titulo} (${it.instituicao})${prazo}`, url: it.link, rotulo: 'Link do edital' });
+}
+
+// ---------- tema ----------
+const TEMAS = {
+  auto: { icone: 'auto', nome: 'automático' },
+  claro: { icone: 'sol', nome: 'claro (creme)' },
+  escuro: { icone: 'lua', nome: 'escuro' },
+};
+const corMeta = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => [m, m.content]);
+
+function aplicarTema(tema, salvar = true) {
+  if (!TEMAS[tema]) tema = 'auto';
+  const raiz = document.documentElement;
+  if (tema === 'auto') delete raiz.dataset.tema; else raiz.dataset.tema = tema;
+  if (salvar) armazem.gravar('localStorage', 'janela:tema', tema);
+  // Barra do navegador no celular acompanha o tema escolhido.
+  for (const [m, original] of corMeta) {
+    m.content = tema === 'auto' ? original : getComputedStyle(raiz).getPropertyValue('--papel').trim();
+  }
+  $('#tema-icone').setAttribute('href', `#i-${TEMAS[tema].icone}`);
+  $('#tema-botao').setAttribute('aria-label', `Tema: ${TEMAS[tema].nome}. Mudar tema`);
+  for (const r of document.querySelectorAll('input[name="tema"]')) r.checked = r.value === tema;
+}
+
+function ligarTema() {
+  const botao = $('#tema-botao');
+  const menu = $('#tema-menu');
+  const abrir = (sim) => {
+    menu.hidden = !sim;
+    botao.setAttribute('aria-expanded', String(sim));
+    if (sim) menu.querySelector('input:checked')?.focus();
+  };
+  botao.addEventListener('click', () => abrir(menu.hidden));
+  menu.addEventListener('change', (e) => aplicarTema(e.target.value));
+  // Clique com mouse/toque escolhe e fecha; setas do teclado só trocam.
+  menu.addEventListener('pointerup', (e) => {
+    if (e.target.closest('.tema-opcao')) setTimeout(() => { abrir(false); botao.focus(); }, 120);
+  });
+  menu.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); abrir(false); botao.focus(); }
+  });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.tema')) abrir(false); });
+  menu.addEventListener('focusout', (e) => {
+    if (!e.relatedTarget || !e.relatedTarget.closest('.tema')) abrir(false);
+  });
+  aplicarTema(armazem.ler('localStorage', 'janela:tema') || 'auto', false);
+}
+
 // ---------- eventos ----------
 function ligarEventos() {
   const tabs = [...document.querySelectorAll('[role="tab"]')];
@@ -469,6 +565,8 @@ function ligarEventos() {
   $('#limpar').addEventListener('click', limpar);
 
   $('#lista').addEventListener('click', (e) => {
+    const comp = e.target.closest('[data-compartilhar]');
+    if (comp) { compartilharItem(comp.dataset.compartilhar); return; }
     const b = e.target.closest('[data-acao]');
     if (!b) return;
     if (b.dataset.acao === 'limpar') limpar();
@@ -479,6 +577,13 @@ function ligarEventos() {
   });
 
   $('#recarregar').addEventListener('click', carregarTudo);
+  $('#compartilhar-site').addEventListener('click', () => compartilhar({
+    titulo: 'janelAI',
+    texto: 'janelAI: editais de pós-graduação e vagas abertas, com o prazo sempre à vista.',
+    url: location.origin + location.pathname,
+    rotulo: 'Link do janelAI',
+  }));
+  ligarTema();
 
   // "Mais filtros" (só aparece no celular)
   $('#mais-filtros').addEventListener('click', (e) => {
