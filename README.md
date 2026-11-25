@@ -127,6 +127,15 @@ o site mostra a última versão salva com um aviso e um botão "Tentar de novo".
 nada salvo, aparece uma mensagem explicando o erro (sem internet, link errado, formato
 que não é CSV, demora) com o mesmo botão.
 
+## Tema e compartilhamento
+
+- **Tema:** o botão ao lado de "Atualizar" escolhe entre *Automático* (segue o sistema),
+  *Claro (creme)*, um tema em tons de creme e marrom, mais suave que branco e preto, e *Escuro*.
+  A escolha fica salva no navegador.
+- **Compartilhar:** cada card tem um botão de compartilhar. No celular ele abre a folha de
+  compartilhamento do sistema (WhatsApp, e-mail…); no computador copia o link do edital.
+  No rodapé, "Compartilhar o janelAI" faz o mesmo com o endereço do site.
+
 ## Logo
 
 - `favicon.svg` / `assets/logo/simbolo.svg`: símbolo em bloco escuro, funciona em qualquer fundo.
