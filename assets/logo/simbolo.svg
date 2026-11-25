@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="janelAI">
+  <!-- Símbolo do janelAI: janela em arco com o painel aberto (verde) e a faísca da IA -->
+  <rect width="64" height="64" rx="15" fill="#1c1a16"/>
+  <path d="M32 8a18 18 0 0 1 18 18v8H32Z" fill="#74d2a3"/>
+  <path d="M14 52V26a18 18 0 0 1 36 0v26Z" fill="none" stroke="#f4efe4" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M32 8v44M14 34h36" stroke="#f4efe4" stroke-width="4"/>
+  <path d="M41 15.5c.8 4.6 2.6 6.4 7.2 7.2-4.6.8-6.4 2.6-7.2 7.2-.8-4.6-2.6-6.4-7.2-7.2 4.6-.8 6.4-2.6 7.2-7.2Z" fill="#1c1a16"/>
+</svg>

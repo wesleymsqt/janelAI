@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" role="img" aria-label="janelAI">
+  <!-- Versão para fundo claro. O texto usa Fraunces (Google Fonts); sem a fonte instalada, cai para Georgia. -->
+  <style>
+    .w { font-family: Fraunces, "Iowan Old Style", Georgia, serif; font-size: 52px; font-weight: 650; letter-spacing: -1.5px; }
+    .ai { font-style: italic; font-weight: 500; }
+  </style>
+  <g transform="translate(4 8)">
+    <path d="M32 8a18 18 0 0 1 18 18v8H32Z" fill="#1b5e43"/>
+    <path d="M14 52V26a18 18 0 0 1 36 0v26Z" fill="none" stroke="#1c1a16" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M32 8v44M14 34h36" stroke="#1c1a16" stroke-width="4"/>
+    <path d="M41 15.5c.8 4.6 2.6 6.4 7.2 7.2-4.6.8-6.4 2.6-7.2 7.2-.8-4.6-2.6-6.4-7.2-7.2 4.6-.8 6.4-2.6 7.2-7.2Z" fill="#fffcf5"/>
+  </g>
+  <text x="70" y="58" class="w" fill="#1c1a16">janel<tspan class="ai" fill="#1b5e43">AI</tspan></text>
+</svg>
