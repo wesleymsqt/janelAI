@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>janelAI · editais e vagas abertas</title>
+  <meta name="description" content="janelAI: editais de pós-graduação, bolsas, estágios e seleções encontrados com ajuda de IA, com o prazo sempre à vista.">
+  <meta property="og:title" content="janelAI">
+  <meta property="og:description" content="Editais e vagas abertas, com o prazo sempre à vista.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14130f" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="assets/estilos.css">
+  <script type="module" src="assets/app.js"></script>
+</head>
+<body>
+  <!-- Ícones -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-aberto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="m8 12.5 2.6 2.6L16 9.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-andamento" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-atualizacao" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 13a8 8 0 0 0 14.6 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 3v4h4M19 21v-4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-encerrado" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19L12 3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-calendario" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-externo" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-recarregar" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-vazio" viewBox="0 0 48 48"><rect x="7" y="9" width="34" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 17h34M15 25h18M15 31h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <a class="pular" href="#painel">Pular para a lista</a>
+
+  <header class="cabecalho">
+    <div class="wrap">
+      <p class="linha-data">
+        <span id="hoje"></span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span id="atualizado">Carregando planilhas…</span>
+      </p>
+      <div class="marca-linha">
+        <h1 class="marca" aria-label="janelAI">
+          <svg class="marca-simbolo" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+            <path class="ms-painel" d="M32 8a18 18 0 0 1 18 18v8H32Z"/>
+            <path class="ms-traco" d="M14 52V26a18 18 0 0 1 36 0v26Z"/>
+            <path class="ms-traco" d="M32 8v44M14 34h36"/>
+            <path class="ms-faisca" d="M41 15.5c.8 4.6 2.6 6.4 7.2 7.2-4.6.8-6.4 2.6-7.2 7.2-.8-4.6-2.6-6.4-7.2-7.2 4.6-.8 6.4-2.6 7.2-7.2Z"/>
+          </svg>
+          <span class="marca-texto" aria-hidden="true">janel<span class="marca-ai">AI</span></span>
+        </h1>
+        <button type="button" class="botao-icone" id="recarregar" aria-label="Atualizar dados agora">
+          <svg aria-hidden="true"><use href="#i-recarregar"/></svg>
+          <span class="rotulo-largo">Atualizar</span>
+        </button>
+      </div>
+      <p class="lema">Editais de pós-graduação, bolsas, estágios e seleções, garimpados com IA e com o prazo sempre à vista.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="aviso-exemplo" class="aviso" hidden>
+      <strong>Dados de exemplo.</strong> Cole os links CSV das planilhas no arquivo <code>config.js</code> para ver seus editais de verdade.
+    </div>
+
+    <section class="resumo" aria-labelledby="resumo-titulo">
+      <h2 id="resumo-titulo" class="sr-only">Resumo</h2>
+      <p class="resumo-dica" id="resumo-dica">Toque num número para filtrar a aba atual.</p>
+      <ul class="stats" id="stats" aria-busy="true" aria-describedby="resumo-dica">
+        <li><button type="button" class="stat" data-atalho="aberto" aria-pressed="false">
+          <span class="stat-rotulo">Abertos agora</span>
+          <span class="stat-num" id="st-abertos"><span class="sk sk-num"></span></span><span class="stat-sub" id="st-abertos-sub"></span>
+        </button></li>
+        <li><button type="button" class="stat stat--alerta" data-atalho="semana" aria-pressed="false">
+          <span class="stat-rotulo" id="st-semana-rotulo">Encerram em 7 dias</span>
+          <span class="stat-num" id="st-semana"><span class="sk sk-num"></span></span><span class="stat-sub" id="st-semana-sub"></span>
+        </button></li>
+        <li><button type="button" class="stat" data-atalho="novos" aria-pressed="false">
+          <span class="stat-rotulo">Novos para você</span>
+          <span class="stat-num" id="st-novos"><span class="sk sk-num"></span></span><span class="stat-sub" id="st-novos-sub"></span>
+        </button></li>
+      </ul>
+    </section>
+
+    <div class="abas" role="tablist" aria-label="Seções">
+      <button type="button" role="tab" id="aba-pos" data-aba="pos" aria-controls="painel" aria-selected="true">
+        Pós-graduação <span class="aba-contagem" id="cont-pos"></span>
+      </button>
+      <button type="button" role="tab" id="aba-vagas" data-aba="vagas" aria-controls="painel" aria-selected="false" tabindex="-1">
+        Vagas e seleções <span class="aba-contagem" id="cont-vagas"></span>
+      </button>
+    </div>
+
+    <section id="painel" role="tabpanel" aria-labelledby="aba-pos" tabindex="-1">
+      <form class="filtros" id="filtros" role="search" aria-label="Filtrar a lista" onsubmit="return false">
+        <div class="campo campo--busca">
+          <label for="f-busca" class="sr-only">Buscar</label>
+          <svg class="campo-icone" aria-hidden="true"><use href="#i-busca"/></svg>
+          <input type="search" id="f-busca" name="q" placeholder="Buscar por título, instituição ou detalhe" autocomplete="off" enterkeyhint="search">
+        </div>
+
+        <fieldset class="chips" id="f-status">
+          <legend class="sr-only">Situação</legend>
+          <label class="chip"><input type="radio" name="status" value="todos" checked><span>Todos</span></label>
+          <label class="chip"><input type="radio" name="status" value="aberto"><span>Abertos</span></label>
+          <label class="chip"><input type="radio" name="status" value="andamento"><span>Em andamento</span></label>
+          <label class="chip"><input type="radio" name="status" value="atualizacao"><span>Atualizações</span></label>
+          <label class="chip"><input type="radio" name="status" value="encerrado"><span>Encerrados</span></label>
+        </fieldset>
+
+        <button type="button" class="botao-filtros" id="mais-filtros" aria-expanded="false" aria-controls="filtros-extra">
+          Mais filtros <span class="aba-contagem" id="filtros-ativos"></span>
+        </button>
+
+        <div class="filtros-extra" id="filtros-extra">
+        <div class="filtros-grade">
+          <div class="campo">
+            <label for="f-inst">Instituição</label>
+            <select id="f-inst" name="inst"><option value="">Todas</option></select>
+          </div>
+          <div class="campo" id="campo-mod">
+            <label for="f-mod">Modalidade</label>
+            <select id="f-mod" name="mod">
+              <option value="">Todas</option>
+              <option value="ead">EaD / a distância</option>
+              <option value="presencial">Presencial</option>
+              <option value="hibrido">Semipresencial / híbrido</option>
+              <option value="nd">Não informada</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" name="novos" id="f-novos"><span>Só novidades</span></label>
+          <label class="toggle"><input type="checkbox" name="semana" id="f-semana"><span id="f-semana-rotulo">Vencem em até 7 dias</span></label>
+          <button type="button" class="link-botao" id="limpar" hidden>Limpar filtros</button>
+        </div>
+        </div>
+      </form>
+
+      <p class="contador" id="contador" role="status" aria-live="polite"></p>
+      <div id="lista" class="lista" aria-busy="true"></div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <div class="wrap">
+      <p><strong>janelAI</strong>: dados das planilhas de monitoramento, atualizadas todos os dias por uma busca automática com IA. Confira sempre o edital oficial antes de se inscrever.</p>
+    </div>
+  </footer>
+</body>
+</html>
