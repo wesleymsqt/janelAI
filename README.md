@@ -18,7 +18,7 @@ Feito em HTML, CSS e JavaScript puro, sem build, sem backend e sem dependências
 ├── favicon.svg
 ├── assets/
 │   ├── logo/           símbolo e logo horizontal (fundo claro e escuro)
-│   ├── app.js          interface: abas, filtros, cards, resumo
+│   ├── app.js          interface: abas, filtros, cards, resumo, tema, compartilhar
 │   ├── dados.js        leitura do CSV e interpretação da coluna "Situação"
 │   └── estilos.css     tema claro/escuro, layout mobile-first
 └── dados/
@@ -53,34 +53,8 @@ e a janela do resumo (`diasEmBreve`, padrão 7).
 
 > O Google pode levar até uns 5 minutos para refletir mudanças da planilha no CSV publicado.
 
-## 3. Publicar no GitHub Pages
-
-1. Crie um repositório no GitHub (pode ser privado ou público; Pages em repositório privado exige plano pago).
-2. Envie todos os arquivos desta pasta para a branch `main`:
-   ```powershell
-   git init
-   ```
-   ```powershell
-   git add .
-   ```
-   ```powershell
-   git commit -m "janelAI: primeira versão"
-   ```
-   ```powershell
-   git branch -M main
-   ```
-   ```powershell
-   git remote add origin https://github.com/wesleymsqt/janelAI.git
-   ```
-   ```powershell
-   git push -u origin main
-   ```
-3. No repositório: **Settings → Pages → Build and deployment → Source: Deploy from a branch**,
-   escolha `main` e a pasta `/ (root)`. Salve.
-4. Em um ou dois minutos o site estará em `https://wesleymsqt.github.io/janelAI/`.
-
-Para atualizar os links depois, edite `config.js` (direto no GitHub, pelo lápis, também funciona)
-e faça commit. O Pages republica sozinho.
+Depois de editar `config.js` (pode ser direto no GitHub, pelo lápis do arquivo), faça commit:
+o site em https://wesleymsqt.github.io/janelAI/ se atualiza sozinho em cerca de um minuto.
 
 > Atenção: o link "Publicar na web" é público para quem tiver o endereço, e ele fica visível
 > no `config.js`. Não publique abas com dados que você não queira expor.
@@ -94,6 +68,18 @@ python -m http.server 5173
 ```
 
 e abra `http://localhost:5173`.
+
+## Abas
+
+| Aba | De onde vem | Regra |
+|---|---|---|
+| **Doutorado** | planilha de pós | título contém "doutorado" |
+| **Mestrado** | planilha de pós | título contém "mestrado" (inclui mestrado profissional) |
+| **Pós/Especialização** | planilha de pós | todo o resto: especialização, MBA, residência… |
+| **Vagas** | planilha de vagas | tudo: estágios, bolsas, seleções |
+
+Um título como "Mestrado e Doutorado em X" aparece nas duas abas. Cada aba guarda os
+próprios filtros, e o número ao lado do nome é a quantidade de inscrições abertas.
 
 ## Como os dados são interpretados
 
@@ -129,12 +115,12 @@ que não é CSV, demora) com o mesmo botão.
 
 ## Tema e compartilhamento
 
-- **Tema:** o botão ao lado de "Atualizar" escolhe entre *Automático* (segue o sistema),
-  *Claro (creme)*, um tema em tons de creme e marrom, mais suave que branco e preto, e *Escuro*.
+- **Tema:** o primeiro botão do topo escolhe entre *Automático* (segue o sistema),
+  *Claro*, em tons de creme e marrom, mais suave que branco e preto, e *Escuro*.
   A escolha fica salva no navegador.
 - **Compartilhar:** cada card tem um botão de compartilhar. No celular ele abre a folha de
   compartilhamento do sistema (WhatsApp, e-mail…); no computador copia o link do edital.
-  No rodapé, "Compartilhar o janelAI" faz o mesmo com o endereço do site.
+  No topo, o botão "Compartilhar" faz o mesmo com o endereço do janelAI.
 
 ## Logo
 
