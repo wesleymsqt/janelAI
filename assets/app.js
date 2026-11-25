@@ -6,13 +6,23 @@ import { montarItens, ordenar, normalizar, inicioDoDia } from './dados.js';
 
 const DIAS_URGENTE = CONFIG.diasUrgente ?? 3;
 const DIAS_BREVE = CONFIG.diasEmBreve ?? 7;
-const ABAS = ['pos', 'vagas'];
-const NOME_ABA = { pos: 'Pós-graduação', vagas: 'Vagas e seleções' };
+// Duas planilhas (fontes) alimentam quatro abas.
+const FONTES = ['pos', 'vagas'];
+const NOME_FONTE = { pos: 'os editais de pós-graduação', vagas: 'as vagas e seleções' };
+const ABAS = {
+  doutorado: { fonte: 'pos', nome: 'Doutorado', filtro: (it) => it.niveis.includes('doutorado'), abertos: 'Inscrições abertas', vazio: 'Nenhum edital de doutorado na planilha por enquanto.' },
+  mestrado: { fonte: 'pos', nome: 'Mestrado', filtro: (it) => it.niveis.includes('mestrado'), abertos: 'Inscrições abertas', vazio: 'Nenhum edital de mestrado na planilha por enquanto.' },
+  especializacao: { fonte: 'pos', nome: 'Pós/Especialização', filtro: (it) => it.niveis.includes('especializacao'), abertos: 'Inscrições abertas', vazio: 'Nenhum edital de especialização na planilha por enquanto.' },
+  vagas: { fonte: 'vagas', nome: 'Vagas', filtro: () => true, abertos: 'Abertas', vazio: 'Nenhuma vaga ou seleção na planilha por enquanto.' },
+};
+const LISTA_ABAS = Object.keys(ABAS);
+const ehPos = (aba) => ABAS[aba].fonte === 'pos';
 
 const fmtData = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtCurta = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' });
 const fmtHora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
-const fmtLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const fmtSemana = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' });
+const fmtDia = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -29,16 +39,18 @@ const armazem = {
 // ---------- estado ----------
 const filtroPadrao = () => ({ q: '', status: 'todos', inst: '', mod: '', novos: false, semana: false });
 
+const abaValida = (a) => (a && Object.hasOwn(ABAS, a) ? a : null);
 const estado = {
   hoje: inicioDoDia(),
-  aba: ABAS.includes(location.hash.slice(1)) ? location.hash.slice(1) : (armazem.ler('localStorage', 'janela:aba') || 'pos'),
-  fontes: Object.fromEntries(ABAS.map((a) => [a, { estado: 'carregando', itens: [], erro: null }])),
-  filtros: Object.fromEntries(ABAS.map((a) => [a, filtroPadrao()])),
-  encerradosAbertos: { pos: false, vagas: false },
+  aba: abaValida(location.hash.slice(1)) || abaValida(armazem.ler('localStorage', 'janela:aba')) || LISTA_ABAS[0],
+  fontes: Object.fromEntries(FONTES.map((f) => [f, { estado: 'carregando', itens: [], erro: null }])),
+  filtros: Object.fromEntries(LISTA_ABAS.map((a) => [a, filtroPadrao()])),
+  encerradosAbertos: {},
   ultimaVisita: null,
   atualizadoEm: null,
 };
-if (!ABAS.includes(estado.aba)) estado.aba = 'pos';
+const fonteDe = (aba) => estado.fontes[ABAS[aba].fonte];
+const itensDaAba = (aba) => fonteDe(aba).itens.filter(ABAS[aba].filtro);
 
 // Última visita: o valor de antes desta sessão vira a base do "novo",
 // assim recarregar a página não apaga as novidades.
@@ -74,8 +86,8 @@ const MENSAGENS = {
 };
 const mensagemDe = (e) => (e.tipo === 'http' ? MENSAGENS.http(e.detalhe) : MENSAGENS[e.tipo] || MENSAGENS.rede);
 
-async function baixar(aba) {
-  const cfg = CONFIG.fontes[aba];
+async function baixar(fonte) {
+  const cfg = CONFIG.fontes[fonte];
   const real = (cfg.url || '').trim();
   const url = real || cfg.exemplo;
   const ctrl = new AbortController();
@@ -88,22 +100,22 @@ async function baixar(aba) {
     const texto = await resp.text();
     if (/^\s*<(!doctype|html)/i.test(texto)) throw new ErroFonte('html');
     if (!texto.trim()) throw new ErroFonte('vazio');
-    if (real) armazem.gravar('localStorage', `janela:cache:${aba}`, JSON.stringify({ texto, em: new Date().toISOString() }));
+    if (real) armazem.gravar('localStorage', `janela:cache:${fonte}`, JSON.stringify({ texto, em: new Date().toISOString() }));
     return { itens: ordenar(montarItens(texto, estado.hoje)), exemplo: !real };
   } finally { clearTimeout(timer); }
 }
 
-async function carregar(aba) {
-  const f = estado.fontes[aba];
+async function carregar(fonte) {
+  const f = estado.fontes[fonte];
   f.estado = 'carregando'; f.erro = null; f.cache = null;
-  if (aba === estado.aba) renderPainel();
+  if (ABAS[estado.aba].fonte === fonte) renderPainel();
   try {
-    const r = await baixar(aba);
+    const r = await baixar(fonte);
     Object.assign(f, { estado: 'ok', itens: r.itens, exemplo: r.exemplo });
   } catch (e) {
     const erro = e instanceof ErroFonte ? e : new ErroFonte('rede');
     let salvo = null;
-    try { salvo = JSON.parse(armazem.ler('localStorage', `janela:cache:${aba}`) || 'null'); } catch { /* ignora */ }
+    try { salvo = JSON.parse(armazem.ler('localStorage', `janela:cache:${fonte}`) || 'null'); } catch { /* ignora */ }
     if (salvo?.texto) {
       Object.assign(f, { estado: 'ok', itens: ordenar(montarItens(salvo.texto, estado.hoje)), cache: new Date(salvo.em), erro });
     } else {
@@ -120,7 +132,7 @@ async function carregarTudo() {
   botao.disabled = true;
   $('#atualizado').textContent = 'Carregando planilhas…';
   $('#stats').setAttribute('aria-busy', 'true');
-  await Promise.allSettled(ABAS.map(carregar));
+  await Promise.allSettled(FONTES.map(carregar));
   botao.removeAttribute('aria-busy');
   botao.disabled = false;
   $('#stats').setAttribute('aria-busy', 'false');
@@ -129,8 +141,11 @@ async function carregarTudo() {
 
 // ---------- cabeçalho e resumo ----------
 function renderCabecalho() {
-  $('#hoje').textContent = fmtLonga.format(new Date());
-  const fs = ABAS.map((a) => estado.fontes[a]);
+  const agora = new Date();
+  const semana = fmtSemana.format(agora);
+  // No celular o dia da semana some para caber ao lado dos botões.
+  $('#hoje').innerHTML = `<span class="dia-semana">${semana[0].toUpperCase()}${semana.slice(1)}, </span>${fmtDia.format(agora)}`;
+  const fs = FONTES.map((f) => estado.fontes[f]);
   const at = $('#atualizado');
   if (fs.some((f) => f.estado === 'carregando')) at.textContent = 'Carregando planilhas…';
   else if (fs.every((f) => f.estado === 'erro')) at.textContent = 'Sem dados no momento';
@@ -141,10 +156,10 @@ function renderCabecalho() {
 }
 
 function renderResumo() {
-  const prontas = ABAS.filter((a) => estado.fontes[a].estado === 'ok');
-  if (!prontas.length && ABAS.some((a) => estado.fontes[a].estado === 'carregando')) return;
+  const prontas = FONTES.filter((f) => estado.fontes[f].estado === 'ok');
+  if (!prontas.length && FONTES.some((f) => estado.fontes[f].estado === 'carregando')) return;
 
-  const conta = (fn) => Object.fromEntries(ABAS.map((a) => [a, estado.fontes[a].itens.filter(fn).length]));
+  const conta = (fn) => Object.fromEntries(FONTES.map((f) => [f, estado.fontes[f].itens.filter(fn).length]));
   const soma = (o) => o.pos + o.vagas;
   const ok = (a) => estado.fontes[a].estado === 'ok';
   const detalhar = (o) => `${ok('pos') ? o.pos : '—'} pós · ${ok('vagas') ? o.vagas : '—'} vagas`;
@@ -172,16 +187,15 @@ function renderResumo() {
     $('#st-novos-sub').textContent = 'Primeira visita: a partir da próxima, marcamos o que é novo';
   }
 
-  for (const a of ABAS) {
-    const f = estado.fontes[a];
-    const el = $(`#cont-${a}`);
-    el.innerHTML = f.estado === 'ok' ? `${abertos[a]}<span class="sr-only"> ${abertos[a] === 1 ? 'aberto' : 'abertos'}</span>` : '';
+  for (const a of LISTA_ABAS) {
+    const n = itensDaAba(a).filter((it) => it.status === 'aberto').length;
+    $(`#cont-${a}`).innerHTML = fonteDe(a).estado === 'ok' ? `${n}<span class="sr-only"> ${n === 1 ? 'aberto' : 'abertos'}</span>` : '';
   }
 }
 
 // ---------- abas ----------
 function trocarAba(aba, focar = false) {
-  if (!ABAS.includes(aba)) return;
+  if (!abaValida(aba)) return;
   estado.aba = aba;
   armazem.gravar('localStorage', 'janela:aba', aba);
   history.replaceState(null, '', `#${aba}`);
@@ -190,6 +204,8 @@ function trocarAba(aba, focar = false) {
     b.setAttribute('aria-selected', String(sel));
     b.tabIndex = sel ? 0 : -1;
     if (sel && focar) b.focus();
+    // No celular as abas rolam na horizontal: mantém a ativa à vista.
+    if (sel) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   $('#painel').setAttribute('aria-labelledby', `aba-${aba}`);
   preencherFormulario();
@@ -207,9 +223,9 @@ function preencherFormulario() {
   el.mod.value = f.mod;
   el.novos.checked = f.novos;
   el.semana.checked = f.semana;
-  const ehPos = estado.aba === 'pos';
-  $('#campo-mod').hidden = !ehPos;
-  $('.filtros-grade').classList.toggle('uma-coluna', !ehPos);
+  const pos = ehPos(estado.aba);
+  $('#campo-mod').hidden = !pos;
+  $('.filtros-grade').classList.toggle('uma-coluna', !pos);
   $('#f-semana-rotulo').textContent = `Vencem em até ${DIAS_BREVE} dias`;
   // Na primeira visita ainda não há base para "novo": o filtro some em vez de ficar desativado.
   $('#f-novos').closest('.toggle').hidden = !estado.ultimaVisita;
@@ -221,7 +237,7 @@ function lerFormulario() {
   f.q = el.q.value;
   f.status = el.status.value || 'todos';
   f.inst = el.inst.value;
-  f.mod = estado.aba === 'pos' ? el.mod.value : '';
+  f.mod = ehPos(estado.aba) ? el.mod.value : '';
   f.novos = el.novos.checked;
   f.semana = el.semana.checked;
 }
@@ -293,7 +309,7 @@ function card(it) {
   const idTitulo = `t-${it.id}`;
   const tags = [];
   if (ehNovo(it)) tags.push('<span class="tag tag--novo">Novo</span>');
-  if (estado.aba === 'pos' && MODALIDADE[it.modalidade]) tags.push(`<span class="tag">${MODALIDADE[it.modalidade]}</span>`);
+  if (ehPos(estado.aba) && MODALIDADE[it.modalidade]) tags.push(`<span class="tag">${MODALIDADE[it.modalidade]}</span>`);
 
   const botao = it.link
     ? `<button type="button" class="botao-compartilhar" data-compartilhar="${it.id}" aria-label="Compartilhar ou copiar link: ${esc(it.titulo)}" title="Compartilhar ou copiar link">${icone('compartilhar')}</button>` +
@@ -324,7 +340,7 @@ function skeleton(n = 6) {
     <span class="sk sk-linha" style="width:40%"></span><span class="sk sk-prazo"></span>
     <div class="card-rodape"><span class="sk sk-linha" style="width:35%"></span><span class="sk sk-botao"></span></div>
   </div></li>`;
-  return `<span class="sr-only">Carregando ${NOME_ABA[estado.aba]}…</span><div class="grupo"><span class="sk sk-linha" style="width:180px;height:20px;margin-bottom:14px"></span><ul class="cards">${um.repeat(n)}</ul></div>`;
+  return `<span class="sr-only">Carregando ${ABAS[estado.aba].nome}…</span><div class="grupo"><span class="sk sk-linha" style="width:180px;height:20px;margin-bottom:14px"></span><ul class="cards">${um.repeat(n)}</ul></div>`;
 }
 
 function estadoHTML({ icone: ic = 'vazio', titulo, texto, acao = '', erro = false, extra = '' }) {
@@ -343,7 +359,7 @@ function sincronizarAtalhos() {
 function renderPainel() {
   const aba = estado.aba;
   sincronizarAtalhos();
-  const fonte = estado.fontes[aba];
+  const fonte = fonteDe(aba);
   const lista = $('#lista');
   const contador = $('#contador');
   form().hidden = fonte.estado === 'erro';
@@ -360,32 +376,33 @@ function renderPainel() {
     contador.textContent = '';
     lista.innerHTML = estadoHTML({
       erro: true, icone: 'alerta',
-      titulo: `Não deu para carregar ${NOME_ABA[aba].toLowerCase()}`,
+      titulo: `Não deu para carregar ${NOME_FONTE[ABAS[aba].fonte]}`,
       texto: esc(mensagemDe(fonte.erro)),
-      acao: `<button type="button" class="botao" data-acao="tentar" data-aba="${aba}">${icone('recarregar')}Tentar de novo</button>`,
+      acao: `<button type="button" class="botao" data-acao="tentar" data-fonte="${ABAS[aba].fonte}">${icone('recarregar')}Tentar de novo</button>`,
     });
     return;
   }
 
-  atualizarInstituicoes(fonte.itens);
+  const itens = itensDaAba(aba);
+  atualizarInstituicoes(itens);
   const f = estado.filtros[aba];
   $('#limpar').hidden = !filtroAtivo(f);
 
   const avisoCache = fonte.cache
-    ? `<div class="aviso" role="status"><strong>Não deu para atualizar agora.</strong> Mostrando a versão salva em ${fmtData.format(fonte.cache)} às ${fmtHora.format(fonte.cache)}. <button type="button" class="link-botao" data-acao="tentar" data-aba="${aba}">Tentar de novo</button></div>`
+    ? `<div class="aviso" role="status"><strong>Não deu para atualizar agora.</strong> Mostrando a versão salva em ${fmtData.format(fonte.cache)} às ${fmtHora.format(fonte.cache)}. <button type="button" class="link-botao" data-acao="tentar" data-fonte="${ABAS[aba].fonte}">Tentar de novo</button></div>`
     : '';
 
-  if (!fonte.itens.length) {
+  if (!itens.length) {
     contador.textContent = '';
     lista.innerHTML = avisoCache + estadoHTML({
       titulo: 'Nada por aqui ainda',
-      texto: 'A planilha ainda não tem itens. Quando a busca diária encontrar algo, aparece aqui.',
+      texto: `${ABAS[aba].vazio} Quando a busca diária encontrar algo, aparece aqui.`,
     });
     return;
   }
 
-  const filtrados = aplicarFiltros(fonte.itens, f);
-  const total = fonte.itens.length;
+  const filtrados = aplicarFiltros(itens, f);
+  const total = itens.length;
   contador.textContent = filtrados.length === total
     ? plural(total, 'item', 'itens')
     : `Mostrando ${filtrados.length} de ${plural(total, 'item', 'itens')}`;
@@ -408,7 +425,7 @@ function renderPainel() {
     html += grupoHTML('Encerrados', encerrados);
   } else {
     const ativos = filtrados.length - encerrados.length;
-    html += grupoHTML(aba === 'pos' ? 'Inscrições abertas' : 'Abertas', por('aberto'));
+    html += grupoHTML(ABAS[aba].abertos, por('aberto'));
     html += grupoHTML('Em andamento', por('andamento'));
     html += grupoHTML('Atualizações', por('atualizacao'));
     if (encerrados.length) {
@@ -479,7 +496,7 @@ async function compartilhar({ titulo, texto, url, rotulo }) {
 }
 
 function compartilharItem(id) {
-  const it = ABAS.flatMap((a) => estado.fontes[a].itens).find((i) => i.id === id);
+  const it = FONTES.flatMap((f) => estado.fontes[f].itens).find((i) => i.id === id);
   if (!it?.link) return;
   const prazo = it.prazo && it.status !== 'encerrado' ? ` · inscrições até ${fmtData.format(it.prazo)}` : '';
   compartilhar({ titulo: it.titulo, texto: `${it.titulo} (${it.instituicao})${prazo}`, url: it.link, rotulo: 'Link do edital' });
@@ -488,7 +505,7 @@ function compartilharItem(id) {
 // ---------- tema ----------
 const TEMAS = {
   auto: { icone: 'auto', nome: 'automático' },
-  claro: { icone: 'sol', nome: 'claro (creme)' },
+  claro: { icone: 'sol', nome: 'claro' },
   escuro: { icone: 'lua', nome: 'escuro' },
 };
 const corMeta = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => [m, m.content]);
@@ -572,7 +589,7 @@ function ligarEventos() {
     if (b.dataset.acao === 'limpar') limpar();
     if (b.dataset.acao === 'tentar') {
       // Depois de tentar de novo, o foco volta ao painel (o botão some com o re-render).
-      carregar(b.dataset.aba).then(() => $('#painel').focus());
+      carregar(b.dataset.fonte).then(() => $('#painel').focus());
     }
   });
 
@@ -607,6 +624,12 @@ function ligarEventos() {
     });
   }
   window.addEventListener('hashchange', () => trocarAba(location.hash.slice(1)));
+  // Some o degradê das abas quando já se chegou ao fim da rolagem.
+  const barra = $('.abas');
+  const marcarFim = () => barra.classList.toggle('no-fim', barra.scrollLeft + barra.clientWidth >= barra.scrollWidth - 4);
+  barra.addEventListener('scroll', marcarFim, { passive: true });
+  window.addEventListener('resize', marcarFim);
+  marcarFim();
   // Atalho: "/" foca a busca.
   document.addEventListener('keydown', (e) => {
     if (e.key === '/' && !/input|select|textarea/i.test(document.activeElement?.tagName || '')) {

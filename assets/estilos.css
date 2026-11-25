@@ -125,19 +125,21 @@ code { font-size: .9em; background: var(--papel-3); padding: .1em .35em; border-
 .cabecalho { padding: 14px 0 14px; border-bottom: 1px solid var(--regra); }
 @media (min-width: 768px) { .cabecalho { padding: 22px 0 20px; } }
 
+.topo-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .linha-data {
-  margin: 0 0 10px; font-size: .8125rem; color: var(--tinta-2);
+  margin: 0; font-size: .8125rem; color: var(--tinta-2);
   display: flex; flex-wrap: wrap; gap: .15rem .45rem; letter-spacing: .01em;
 }
 .linha-data #hoje::first-letter { text-transform: uppercase; }
 
-.marca-linha { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.dia-semana { display: none; }
+@media (min-width: 560px) { .dia-semana { display: inline; } }
 
 .marca {
   margin: 0; display: flex; align-items: center; gap: .14em;
   font-family: var(--serif);
   font-weight: 650;
-  font-size: clamp(2.4rem, 10vw, 4.5rem);
+  font-size: clamp(2.6rem, 11vw, 4.5rem);
   line-height: .9;
   letter-spacing: -.03em;
   font-variation-settings: "opsz" 144;
@@ -279,7 +281,7 @@ code { font-size: .9em; background: var(--papel-3); padding: .1em .35em; border-
 .abas::-webkit-scrollbar { display: none; }
 
 [role="tab"] {
-  flex: 1 1 0; min-height: 48px; padding: 8px 12px;
+  flex: 0 0 auto; min-height: 48px; padding: 8px 14px;
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
   font: 600 .9375rem var(--sans); color: var(--tinta-2); white-space: nowrap;
   background: transparent; border: 1px solid transparent; border-bottom: 0;
@@ -299,7 +301,12 @@ code { font-size: .9em; background: var(--papel-3); padding: .1em .35em; border-
 }
 .aba-contagem:empty { display: none; }
 @media (min-width: 768px) {
-  [role="tab"] { flex: 0 0 auto; padding: 8px 20px; }
+  [role="tab"] { padding: 8px 20px; }
+}
+/* Indica que há mais abas para o lado no celular */
+@media (max-width: 767px) {
+  .abas { scroll-padding-inline: var(--gutter); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+  .abas.no-fim { mask-image: none; }
 }
 
 #painel { outline: none; padding-top: 16px; }

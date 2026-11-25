@@ -48,21 +48,12 @@
 
   <header class="cabecalho">
     <div class="wrap">
-      <p class="linha-data">
-        <span id="hoje"></span>
-        <span class="sep" aria-hidden="true">·</span>
-        <span id="atualizado">Carregando planilhas…</span>
-      </p>
-      <div class="marca-linha">
-        <h1 class="marca" aria-label="janelAI">
-          <svg class="marca-simbolo" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-            <path class="ms-painel" d="M32 8a18 18 0 0 1 18 18v8H32Z"/>
-            <path class="ms-traco" d="M14 52V26a18 18 0 0 1 36 0v26Z"/>
-            <path class="ms-traco" d="M32 8v44M14 34h36"/>
-            <path class="ms-faisca" d="M41 15.5c.8 4.6 2.6 6.4 7.2 7.2-4.6.8-6.4 2.6-7.2 7.2-.8-4.6-2.6-6.4-7.2-7.2 4.6-.8 6.4-2.6 7.2-7.2Z"/>
-          </svg>
-          <span class="marca-texto" aria-hidden="true">janel<span class="marca-ai">AI</span></span>
-        </h1>
+      <div class="topo-linha">
+        <p class="linha-data">
+          <span id="hoje"></span>
+          <span class="sep" aria-hidden="true">·</span>
+          <span id="atualizado">Carregando planilhas…</span>
+        </p>
         <div class="controles">
           <div class="tema">
             <button type="button" class="botao-icone" id="tema-botao" aria-expanded="false" aria-controls="tema-menu" aria-label="Tema: automático">
@@ -71,16 +62,29 @@
             <fieldset class="tema-menu" id="tema-menu" hidden>
               <legend>Tema</legend>
               <label class="tema-opcao"><input type="radio" name="tema" value="auto"><span><svg aria-hidden="true"><use href="#i-auto"/></svg>Automático</span></label>
-              <label class="tema-opcao"><input type="radio" name="tema" value="claro"><span><svg aria-hidden="true"><use href="#i-sol"/></svg>Claro (creme)</span></label>
+              <label class="tema-opcao"><input type="radio" name="tema" value="claro"><span><svg aria-hidden="true"><use href="#i-sol"/></svg>Claro</span></label>
               <label class="tema-opcao"><input type="radio" name="tema" value="escuro"><span><svg aria-hidden="true"><use href="#i-lua"/></svg>Escuro</span></label>
             </fieldset>
           </div>
+          <button type="button" class="botao-icone" id="compartilhar-site" aria-label="Compartilhar o janelAI">
+            <svg aria-hidden="true"><use href="#i-compartilhar"/></svg>
+            <span class="rotulo-largo">Compartilhar</span>
+          </button>
           <button type="button" class="botao-icone" id="recarregar" aria-label="Atualizar dados agora">
             <svg aria-hidden="true"><use href="#i-recarregar"/></svg>
             <span class="rotulo-largo">Atualizar</span>
           </button>
         </div>
       </div>
+      <h1 class="marca" aria-label="janelAI">
+        <svg class="marca-simbolo" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+          <path class="ms-painel" d="M32 8a18 18 0 0 1 18 18v8H32Z"/>
+          <path class="ms-traco" d="M14 52V26a18 18 0 0 1 36 0v26Z"/>
+          <path class="ms-traco" d="M32 8v44M14 34h36"/>
+          <path class="ms-faisca" d="M41 15.5c.8 4.6 2.6 6.4 7.2 7.2-4.6.8-6.4 2.6-7.2 7.2-.8-4.6-2.6-6.4-7.2-7.2 4.6-.8 6.4-2.6 7.2-7.2Z"/>
+        </svg>
+        <span class="marca-texto" aria-hidden="true">janel<span class="marca-ai">AI</span></span>
+      </h1>
       <p class="lema">Editais de pós-graduação, bolsas, estágios e seleções, garimpados com IA e com o prazo sempre à vista.</p>
     </div>
   </header>
@@ -110,15 +114,21 @@
     </section>
 
     <div class="abas" role="tablist" aria-label="Seções">
-      <button type="button" role="tab" id="aba-pos" data-aba="pos" aria-controls="painel" aria-selected="true">
-        Pós-graduação <span class="aba-contagem" id="cont-pos"></span>
+      <button type="button" role="tab" id="aba-doutorado" data-aba="doutorado" aria-controls="painel" aria-selected="true">
+        Doutorado <span class="aba-contagem" id="cont-doutorado"></span>
+      </button>
+      <button type="button" role="tab" id="aba-mestrado" data-aba="mestrado" aria-controls="painel" aria-selected="false" tabindex="-1">
+        Mestrado <span class="aba-contagem" id="cont-mestrado"></span>
+      </button>
+      <button type="button" role="tab" id="aba-especializacao" data-aba="especializacao" aria-controls="painel" aria-selected="false" tabindex="-1">
+        Pós/Especialização <span class="aba-contagem" id="cont-especializacao"></span>
       </button>
       <button type="button" role="tab" id="aba-vagas" data-aba="vagas" aria-controls="painel" aria-selected="false" tabindex="-1">
-        Vagas e seleções <span class="aba-contagem" id="cont-vagas"></span>
+        Vagas <span class="aba-contagem" id="cont-vagas"></span>
       </button>
     </div>
 
-    <section id="painel" role="tabpanel" aria-labelledby="aba-pos" tabindex="-1">
+    <section id="painel" role="tabpanel" aria-labelledby="aba-doutorado" tabindex="-1">
       <form class="filtros" id="filtros" role="search" aria-label="Filtrar a lista" onsubmit="return false">
         <div class="campo campo--busca">
           <label for="f-busca" class="sr-only">Buscar</label>
@@ -173,9 +183,6 @@
   <footer class="rodape">
     <div class="wrap">
       <p><strong>janelAI</strong>: dados das planilhas de monitoramento, atualizadas todos os dias por uma busca automática com IA. Confira sempre o edital oficial antes de se inscrever.</p>
-      <button type="button" class="botao botao--secundario" id="compartilhar-site">
-        <svg aria-hidden="true"><use href="#i-compartilhar"/></svg>Compartilhar o janelAI
-      </button>
     </div>
   </footer>
 

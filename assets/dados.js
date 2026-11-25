@@ -118,6 +118,19 @@ export function detectarModalidade(...textos) {
   return 'nd';
 }
 
+/**
+ * Nível do curso, pelo título: doutorado, mestrado ou especialização (o resto da pós:
+ * especialização, MBA, residência…). "Mestrado e Doutorado em X" entra nas duas abas.
+ */
+export function detectarNiveis(titulo) {
+  const t = normalizar(titulo);
+  const niveis = [];
+  if (/doutorado|\bphd\b/.test(t)) niveis.push('doutorado');
+  if (/mestrado/.test(t)) niveis.push('mestrado');
+  if (!niveis.length) niveis.push('especializacao');
+  return niveis;
+}
+
 /** Exibe a instituição: se vier uma URL, mostra só o domínio. */
 function nomeInstituicao(site) {
   const s = String(site ?? '').trim();
@@ -172,6 +185,7 @@ export function montarItens(textoCSV, hoje = inicioDoDia()) {
       encontrado: lerData(l[mapa.data]),
       link: linkSeguro(l[mapa.link]),
       modalidade: detectarModalidade(titulo, situacaoTexto),
+      niveis: detectarNiveis(titulo),
     };
     item.diasRestantes = item.prazo ? diasEntre(hoje, item.prazo) : null;
     item.id = chave(item);
