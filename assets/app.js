@@ -2,10 +2,12 @@
 //  janelAI: interface
 // ============================================================
 import CONFIG from '../config.js';
-import { montarItens, ordenar, normalizar, inicioDoDia } from './dados.js';
+import { montarItens, ordenar, normalizar, inicioDoDia, prepararAreas, extrairSites } from './dados.js';
 
 const DIAS_URGENTE = CONFIG.diasUrgente ?? 3;
 const DIAS_BREVE = CONFIG.diasEmBreve ?? 7;
+const AREAS = prepararAreas(CONFIG.areas);
+const NOME_AREA = Object.fromEntries(AREAS.map((a) => [a.id, a.nome]));
 // Duas planilhas (fontes) alimentam quatro abas.
 const FONTES = ['pos', 'vagas'];
 const NOME_FONTE = { pos: 'os editais de pós-graduação', vagas: 'as vagas e seleções' };
@@ -37,7 +39,7 @@ const armazem = {
 };
 
 // ---------- estado ----------
-const filtroPadrao = () => ({ q: '', status: 'todos', inst: '', mod: '', novos: false, semana: false });
+const filtroPadrao = () => ({ q: '', status: 'todos', inst: '', mod: '', area: '', novos: false, semana: false });
 
 const abaValida = (a) => (a && Object.hasOwn(ABAS, a) ? a : null);
 const estado = {
@@ -46,6 +48,8 @@ const estado = {
   fontes: Object.fromEntries(FONTES.map((f) => [f, { estado: 'carregando', itens: [], erro: null }])),
   filtros: Object.fromEntries(LISTA_ABAS.map((a) => [a, filtroPadrao()])),
   encerradosAbertos: {},
+  // Lista da aba "Sites monitorados" (via Apps Script). 'off' = scriptUrl vazio.
+  registro: { estado: 'carregando', sites: [] },
   ultimaVisita: null,
   atualizadoEm: null,
 };
@@ -101,7 +105,7 @@ async function baixar(fonte) {
     if (/^\s*<(!doctype|html)/i.test(texto)) throw new ErroFonte('html');
     if (!texto.trim()) throw new ErroFonte('vazio');
     if (real) armazem.gravar('localStorage', `janela:cache:${fonte}`, JSON.stringify({ texto, em: new Date().toISOString() }));
-    return { itens: ordenar(montarItens(texto, estado.hoje)), exemplo: !real };
+    return { itens: ordenar(montarItens(texto, estado.hoje, AREAS)), sites: extrairSites(texto), exemplo: !real };
   } finally { clearTimeout(timer); }
 }
 
@@ -111,15 +115,15 @@ async function carregar(fonte) {
   if (ABAS[estado.aba].fonte === fonte) renderPainel();
   try {
     const r = await baixar(fonte);
-    Object.assign(f, { estado: 'ok', itens: r.itens, exemplo: r.exemplo });
+    Object.assign(f, { estado: 'ok', itens: r.itens, sites: r.sites, exemplo: r.exemplo });
   } catch (e) {
     const erro = e instanceof ErroFonte ? e : new ErroFonte('rede');
     let salvo = null;
     try { salvo = JSON.parse(armazem.ler('localStorage', `janela:cache:${fonte}`) || 'null'); } catch { /* ignora */ }
     if (salvo?.texto) {
-      Object.assign(f, { estado: 'ok', itens: ordenar(montarItens(salvo.texto, estado.hoje)), cache: new Date(salvo.em), erro });
+      Object.assign(f, { estado: 'ok', itens: ordenar(montarItens(salvo.texto, estado.hoje, AREAS)), sites: extrairSites(salvo.texto), cache: new Date(salvo.em), erro });
     } else {
-      Object.assign(f, { estado: 'erro', itens: [], erro });
+      Object.assign(f, { estado: 'erro', itens: [], sites: [], erro });
     }
   }
   estado.atualizadoEm = new Date();
@@ -132,7 +136,7 @@ async function carregarTudo() {
   botao.disabled = true;
   $('#atualizado').textContent = 'Carregando planilhas…';
   $('#stats').setAttribute('aria-busy', 'true');
-  await Promise.allSettled(FONTES.map(carregar));
+  await Promise.allSettled([...FONTES.map(carregar), carregarRegistro()]);
   botao.removeAttribute('aria-busy');
   botao.disabled = false;
   $('#stats').setAttribute('aria-busy', 'false');
@@ -225,7 +229,7 @@ function preencherFormulario() {
   el.semana.checked = f.semana;
   const pos = ehPos(estado.aba);
   $('#campo-mod').hidden = !pos;
-  $('.filtros-grade').classList.toggle('uma-coluna', !pos);
+  $('.filtros-grade').classList.toggle('tres', pos);
   $('#f-semana-rotulo').textContent = `Vencem em até ${DIAS_BREVE} dias`;
   // Na primeira visita ainda não há base para "novo": o filtro some em vez de ficar desativado.
   $('#f-novos').closest('.toggle').hidden = !estado.ultimaVisita;
@@ -238,11 +242,12 @@ function lerFormulario() {
   f.status = el.status.value || 'todos';
   f.inst = el.inst.value;
   f.mod = ehPos(estado.aba) ? el.mod.value : '';
+  f.area = el.area.value;
   f.novos = el.novos.checked;
   f.semana = el.semana.checked;
 }
 
-const filtroAtivo = (f) => f.q.trim() || f.status !== 'todos' || f.inst || f.mod || f.novos || f.semana;
+const filtroAtivo = (f) => f.q.trim() || f.status !== 'todos' || f.inst || f.mod || f.area || f.novos || f.semana;
 
 function atualizarInstituicoes(itens) {
   const sel = $('#f-inst');
@@ -256,12 +261,31 @@ function atualizarInstituicoes(itens) {
   sel.value = f.inst;
 }
 
+// Opções de área: só as que aparecem nesta aba, com contagem.
+function atualizarAreas(itens) {
+  const sel = $('#f-area');
+  const f = estado.filtros[estado.aba];
+  const contagem = new Map();
+  let sem = 0;
+  for (const it of itens) {
+    if (!it.areas.length) sem++;
+    for (const a of it.areas) contagem.set(a, (contagem.get(a) || 0) + 1);
+  }
+  if (f.area && f.area !== 'nd' && !contagem.has(f.area)) f.area = '';
+  if (f.area === 'nd' && !sem) f.area = '';
+  sel.innerHTML = '<option value="">Todas</option>' +
+    AREAS.filter((a) => contagem.has(a.id)).map((a) => `<option value="${a.id}">${esc(a.nome)} (${contagem.get(a.id)})</option>`).join('') +
+    (sem ? `<option value="nd">Sem área identificada (${sem})</option>` : '');
+  sel.value = f.area;
+}
+
 function aplicarFiltros(itens, f) {
   const termos = normalizar(f.q).split(/\s+/).filter(Boolean);
   return itens.filter((it) => {
     if (f.status !== 'todos' && it.status !== f.status) return false;
     if (f.inst && it.instituicao !== f.inst) return false;
     if (f.mod && it.modalidade !== f.mod) return false;
+    if (f.area && (f.area === 'nd' ? it.areas.length > 0 : !it.areas.includes(f.area))) return false;
     if (f.novos && !ehNovo(it)) return false;
     if (f.semana && !venceEmBreve(it, DIAS_BREVE)) return false;
     if (termos.length && !termos.every((t) => it.busca.includes(t))) return false;
@@ -296,7 +320,10 @@ function blocoPrazo(it) {
       : '';
   }
   const d = it.diasRestantes;
-  const urgente = d >= 0 && d <= DIAS_URGENTE;
+  if (d < 0) {
+    return `<p class="prazo prazo--vencido">${icone('calendario')}<span>Prazo encerrado em <time datetime="${iso(it.prazo)}">${fmtData.format(it.prazo)}</time></span></p>`;
+  }
+  const urgente = d <= DIAS_URGENTE;
   const rotulo = it.status === 'aberto' ? 'Inscrições até' : 'Prazo até';
   return `<p class="prazo${urgente ? ' prazo--urgente' : ''}">${icone(urgente ? 'alerta' : 'calendario')}` +
     `<span>${rotulo} <strong><time datetime="${iso(it.prazo)}">${fmtData.format(it.prazo)}</time></strong></span>` +
@@ -352,7 +379,7 @@ function sincronizarAtalhos() {
   const ligado = { aberto: f.status === 'aberto', semana: f.semana, novos: f.novos };
   for (const b of document.querySelectorAll('.stat[data-atalho]')) b.setAttribute('aria-pressed', String(!!ligado[b.dataset.atalho]));
   $('.stat[data-atalho="novos"]').disabled = !estado.ultimaVisita;
-  const extras = [f.inst, f.mod, f.novos, f.semana].filter(Boolean).length;
+  const extras = [f.inst, f.mod, f.area, f.novos, f.semana].filter(Boolean).length;
   $('#filtros-ativos').textContent = extras ? String(extras) : '';
 }
 
@@ -385,6 +412,7 @@ function renderPainel() {
 
   const itens = itensDaAba(aba);
   atualizarInstituicoes(itens);
+  atualizarAreas(itens);
   const f = estado.filtros[aba];
   $('#limpar').hidden = !filtroAtivo(f);
 
@@ -451,6 +479,194 @@ function renderTudo() {
   renderCabecalho();
   renderResumo();
   renderPainel();
+  renderSites();
+}
+
+// ---------- sites monitorados ----------
+const SCRIPT_URL = (CONFIG.scriptUrl || '').trim();
+const NOME_TIPO = { pos: 'Pós-graduação', vagas: 'Vagas e seleções' };
+const urlChave = (u) => String(u || '').trim().toLowerCase().replace(/^https?:\/\/(www\.)?/, '').replace(/\/+$/, '');
+const dominio = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+
+async function carregarRegistro() {
+  const reg = estado.registro;
+  if (!SCRIPT_URL) { reg.estado = 'off'; renderSites(); return; }
+  reg.estado = 'carregando';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), CONFIG.tempoLimite || 15000);
+  try {
+    const resp = await fetch(SCRIPT_URL, { cache: 'no-store', signal: ctrl.signal });
+    const json = await resp.json();
+    if (!json.ok || !Array.isArray(json.sites)) throw new Error('resposta');
+    Object.assign(reg, { estado: 'ok', sites: json.sites });
+  } catch {
+    reg.estado = 'erro';
+  } finally {
+    clearTimeout(timer);
+  }
+  renderSites();
+}
+
+/** Junta a lista da planilha com os sites que aparecem nos dados (contagem e última data). */
+function montarListaSites() {
+  const vistos = [];
+  for (const fonte of FONTES) {
+    for (const v of estado.fontes[fonte].sites || []) vistos.push({ ...v, tipo: fonte, usado: false });
+  }
+  const acharVisto = (nome, url) => vistos.find((v) => normalizar(v.nome) === normalizar(nome) || (url && v.url && urlChave(v.url) === urlChave(url)));
+
+  const lista = [];
+  if (estado.registro.estado === 'ok') {
+    for (const r of estado.registro.sites) {
+      const v = acharVisto(r.nome, r.url);
+      if (v) v.usado = true;
+      lista.push({
+        nome: r.nome || dominio(r.url),
+        url: r.url || v?.url || '',
+        tipo: /vaga/i.test(r.tipo) ? 'vagas' : 'pos',
+        seu: /formul/i.test(r.origem || ''),
+        obs: r.obs || '',
+        ultima: v?.ultima || null,
+        itens: v ? v.itens : null,
+      });
+    }
+  }
+  for (const v of vistos) if (!v.usado) lista.push({ ...v, seu: false, obs: '' });
+  return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function itemSite(s) {
+  const nome = s.url
+    ? `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.nome)}<span class="sr-only"> (abre em nova aba)</span></a>`
+    : esc(s.nome);
+  const tags = [];
+  if (s.seu) tags.push('<span class="tag tag--seu">Adicionado por você</span>');
+  if (s.itens === null) tags.push('<span class="tag tag--aguardando">Aguardando a 1ª busca</span>');
+  const meta = [];
+  if (s.url) meta.push(`<span class="dominio">${esc(dominio(s.url))}</span>`);
+  if (s.itens !== null) {
+    const rotulo = s.tipo === 'vagas' ? ['vaga ou seleção', 'vagas ou seleções'] : ['edital', 'editais'];
+    meta.push(s.itens ? plural(s.itens, ...rotulo) : `nenhum ${rotulo[0].split(' ')[0]} ainda`);
+  }
+  if (s.ultima) meta.push(`visto em ${fmtCurta.format(s.ultima)}`);
+  if (s.obs) meta.push(esc(s.obs));
+  return `<li class="site-item">${icone('globo')}<div class="site-info">
+    <div class="site-nome">${nome}${tags.join('')}</div>
+    <p class="site-meta">${meta.join(' · ')}</p></div></li>`;
+}
+
+function renderSites() {
+  const caixa = $('#sites-lista');
+  const carregando = FONTES.some((f) => estado.fontes[f].estado === 'carregando') || estado.registro.estado === 'carregando';
+  const lista = montarListaSites();
+
+  if (!lista.length && carregando) {
+    caixa.setAttribute('aria-busy', 'true');
+    caixa.innerHTML = `<span class="sr-only">Carregando sites…</span>${'<span class="sk sk-linha" style="height:40px;margin-bottom:8px"></span>'.repeat(4)}`;
+    return;
+  }
+  caixa.setAttribute('aria-busy', 'false');
+
+  $('#sites-qtd').textContent = lista.length || '';
+  $('#link-sites-texto').textContent = lista.length ? `${plural(lista.length, 'site monitorado', 'sites monitorados')}` : 'Sites monitorados';
+
+  if (!lista.length) {
+    caixa.innerHTML = estadoHTML({ icone: 'globo', titulo: 'Nenhum site na lista ainda', texto: 'Adicione o primeiro site com o botão acima.' });
+    return;
+  }
+
+  const grupos = ['pos', 'vagas'].map((t) => {
+    const doTipo = lista.filter((s) => s.tipo === t);
+    return doTipo.length ? `<div class="sites-grupo"><h3>${NOME_TIPO[t]} · ${doTipo.length}</h3><ul>${doTipo.map(itemSite).join('')}</ul></div>` : '';
+  }).join('');
+
+  const nota = {
+    off: 'Lista montada a partir das planilhas. Para adicionar sites por aqui, ligue o formulário (veja o README).',
+    erro: 'Não deu para ler a aba “Sites monitorados” agora; mostrando os sites que aparecem nas planilhas.',
+  }[estado.registro.estado];
+  caixa.innerHTML = grupos + (nota ? `<p class="sites-nota">${nota}</p>` : '');
+}
+
+// ---------- formulário "Adicionar site" ----------
+const ERROS_ENVIO = {
+  dados: 'Confira o nome e o endereço da página.',
+  duplicado: 'Esse endereço já está na lista de sites monitorados.',
+  limite: 'Limite de envios de hoje atingido. Tente de novo amanhã.',
+  formato: 'Não foi possível enviar. Tente de novo.',
+};
+
+function normalizarEndereco(valor) {
+  let u = valor.trim();
+  if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`;
+  try {
+    const p = new URL(u);
+    return /^https?:$/.test(p.protocol) && p.hostname.includes('.') ? p.href : '';
+  } catch { return ''; }
+}
+
+function ligarFormularioSite() {
+  const dialogo = $('#dialogo-site');
+  const formSite = $('#form-site');
+  const erro = $('#form-erro');
+  const enviar = $('#enviar-site');
+  const fechar = () => dialogo.close();
+
+  $('#abrir-adicionar').addEventListener('click', () => {
+    formSite.reset();
+    erro.textContent = '';
+    for (const c of formSite.querySelectorAll('[aria-invalid]')) c.removeAttribute('aria-invalid');
+    $('#aviso-script').hidden = !!SCRIPT_URL;
+    enviar.disabled = !SCRIPT_URL;
+    dialogo.showModal();
+    $('#site-nome').focus();
+  });
+  $('#fechar-dialogo').addEventListener('click', fechar);
+  $('#cancelar-dialogo').addEventListener('click', fechar);
+  // Clicar fora da caixa fecha.
+  dialogo.addEventListener('click', (e) => { if (e.target === dialogo) fechar(); });
+
+  formSite.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!SCRIPT_URL) return;
+    const el = formSite.elements;
+    const nome = el.nome.value.trim();
+    const url = normalizarEndereco(el.url.value);
+    const marcar = (campo, invalido) => (invalido ? campo.setAttribute('aria-invalid', 'true') : campo.removeAttribute('aria-invalid'));
+    marcar(el.nome, !nome);
+    marcar(el.url, !url);
+    if (!nome || !url) {
+      erro.textContent = !nome ? 'Escreva o nome do site.' : 'Esse endereço não parece válido. Ex.: https://www.ifce.edu.br/editais';
+      (!nome ? el.nome : el.url).focus();
+      return;
+    }
+    if (estado.registro.sites.some((s) => urlChave(s.url) === urlChave(url))) {
+      erro.textContent = ERROS_ENVIO.duplicado;
+      el.url.focus();
+      return;
+    }
+
+    erro.textContent = '';
+    enviar.disabled = true;
+    enviar.textContent = 'Enviando…';
+    const dados = { nome, url, tipo: el.tipo.value, obs: el.obs.value.trim(), site_web: el.site_web.value };
+    try {
+      // Sem cabeçalho Content-Type: o Apps Script não responde a "preflight" de CORS.
+      const resp = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(dados) });
+      const json = await resp.json();
+      if (!json.ok) throw new Error(json.erro || 'formato');
+      fechar();
+      avisar('Site adicionado. Ele entra na próxima busca automática.');
+      estado.registro.sites.push({ nome, url, tipo: NOME_TIPO[dados.tipo], obs: dados.obs, origem: 'Formulário do janelAI' });
+      if (estado.registro.estado !== 'ok') estado.registro.estado = 'ok';
+      renderSites();
+      carregarRegistro();
+    } catch (err) {
+      erro.textContent = ERROS_ENVIO[err.message] || 'Não foi possível enviar agora. Confira a internet e tente de novo.';
+    } finally {
+      enviar.disabled = false;
+      enviar.textContent = 'Adicionar';
+    }
+  });
 }
 
 // ---------- compartilhar ----------
@@ -601,6 +817,7 @@ function ligarEventos() {
     rotulo: 'Link do janelAI',
   }));
   ligarTema();
+  ligarFormularioSite();
 
   // "Mais filtros" (só aparece no celular)
   $('#mais-filtros').addEventListener('click', (e) => {

@@ -41,6 +41,8 @@
     <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor"/></symbol>
     <symbol id="i-compartilhar" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1" stroke="currentColor" stroke-width="2"/></symbol>
     <symbol id="i-ok" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-globo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
     <symbol id="i-vazio" viewBox="0 0 48 48"><rect x="7" y="9" width="34" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 17h34M15 25h18M15 31h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -96,7 +98,10 @@
 
     <section class="resumo" aria-labelledby="resumo-titulo">
       <h2 id="resumo-titulo" class="sr-only">Resumo</h2>
-      <p class="resumo-dica" id="resumo-dica">Toque num número para filtrar a aba atual.</p>
+      <div class="resumo-topo">
+        <p class="resumo-dica" id="resumo-dica">Toque num número para filtrar a aba atual.</p>
+        <a class="link-sites" href="#sites"><svg aria-hidden="true"><use href="#i-globo"/></svg><span id="link-sites-texto">Sites monitorados</span></a>
+      </div>
       <ul class="stats" id="stats" aria-busy="true" aria-describedby="resumo-dica">
         <li><button type="button" class="stat" data-atalho="aberto" aria-pressed="false">
           <span class="stat-rotulo">Abertos agora</span>
@@ -151,7 +156,7 @@
 
         <div class="filtros-extra" id="filtros-extra">
         <div class="filtros-grade">
-          <div class="campo">
+          <div class="campo" id="campo-inst">
             <label for="f-inst">Instituição</label>
             <select id="f-inst" name="inst"><option value="">Todas</option></select>
           </div>
@@ -164,6 +169,10 @@
               <option value="hibrido">Semipresencial / híbrido</option>
               <option value="nd">Não informada</option>
             </select>
+          </div>
+          <div class="campo" id="campo-area">
+            <label for="f-area">Área</label>
+            <select id="f-area" name="area"><option value="">Todas</option></select>
           </div>
         </div>
 
@@ -178,7 +187,63 @@
       <p class="contador" id="contador" role="status" aria-live="polite"></p>
       <div id="lista" class="lista" aria-busy="true"></div>
     </section>
+    <section class="sites" id="sites" aria-labelledby="sites-titulo" tabindex="-1">
+      <div class="sites-cabeca">
+        <div>
+          <h2 id="sites-titulo">Sites monitorados <span class="qtd" id="sites-qtd"></span></h2>
+          <p class="sites-sub" id="sites-sub">Páginas que a busca automática visita todos os dias.</p>
+        </div>
+        <button type="button" class="botao" id="abrir-adicionar">
+          <svg aria-hidden="true"><use href="#i-mais"/></svg>Adicionar site
+        </button>
+      </div>
+      <div id="sites-lista" class="sites-lista" aria-busy="true"></div>
+    </section>
   </main>
+
+  <dialog class="dialogo" id="dialogo-site" aria-labelledby="dialogo-titulo">
+    <form method="dialog" class="dialogo-form" id="form-site" novalidate>
+      <div class="dialogo-cabeca">
+        <h2 id="dialogo-titulo">Adicionar site</h2>
+        <button type="button" class="botao-icone botao-fechar" id="fechar-dialogo" aria-label="Fechar">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="dialogo-texto">O site entra na lista da planilha e passa a ser visitado na próxima busca automática.</p>
+      <div class="aviso" id="aviso-script" hidden>
+        <strong>Formulário ainda não ligado.</strong> Publique o Apps Script e cole o endereço em <code>scriptUrl</code>, no <code>config.js</code> (passo a passo no README).
+      </div>
+      <div class="campo">
+        <label for="site-nome">Nome</label>
+        <input id="site-nome" name="nome" type="text" required maxlength="80" autocomplete="off" placeholder="Ex.: IFCE, UFPE, Fiocruz">
+      </div>
+      <div class="campo">
+        <label for="site-url">Endereço da página</label>
+        <input id="site-url" name="url" type="url" required maxlength="300" inputmode="url" autocomplete="off" placeholder="https://… (página onde saem os editais)" aria-describedby="site-url-dica">
+        <p class="campo-dica" id="site-url-dica">Use a página que lista os editais ou as vagas, não a página inicial.</p>
+      </div>
+      <fieldset class="campo">
+        <legend>Tipo</legend>
+        <div class="chips chips--form">
+          <label class="chip"><input type="radio" name="tipo" value="pos" checked><span>Pós-graduação</span></label>
+          <label class="chip"><input type="radio" name="tipo" value="vagas"><span>Vagas e seleções</span></label>
+        </div>
+      </fieldset>
+      <div class="campo">
+        <label for="site-obs">Observação <span class="opcional">(opcional)</span></label>
+        <input id="site-obs" name="obs" type="text" maxlength="300" autocomplete="off" placeholder="Ex.: só mestrado em computação">
+      </div>
+      <div class="armadilha" aria-hidden="true">
+        <label for="site-web">Não preencha</label>
+        <input id="site-web" name="site_web" type="text" tabindex="-1" autocomplete="off">
+      </div>
+      <p class="form-erro" id="form-erro" role="alert"></p>
+      <div class="dialogo-acoes">
+        <button type="button" class="botao botao--secundario" id="cancelar-dialogo">Cancelar</button>
+        <button type="submit" class="botao" id="enviar-site">Adicionar</button>
+      </div>
+    </form>
+  </dialog>
 
   <footer class="rodape">
     <div class="wrap">
