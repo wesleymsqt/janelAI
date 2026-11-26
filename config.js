@@ -9,12 +9,12 @@ export default {
   fontes: {
     pos: {
       // Planilha "Monitor de editais de pós-graduação", aba "Editais de pós"
-      url: '',
+      url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzrADG-QP7cm3-JIL-vx6ruryQVPHul9AN2Egz_3DUj7ZgStjdD-6V1akWUUWSqBz2uIsMDQ_N4kfz/pub?gid=1602070785&single=true&output=csv',
       exemplo: 'dados/exemplo-pos.csv',
     },
     vagas: {
       // Planilha "Monitor de vagas e seleções", aba "Vagas e seleções"
-      url: '',
+      url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqEmrQmC-9eK_uUlp0ImjVpmlRhYwHfne-UjQE7lnJ3f2JK2hzXqHK_SFsRWnpvdPGRc61s4uINi6u/pub?gid=1759819961&single=true&output=csv',
       exemplo: 'dados/exemplo-vagas.csv',
     },
   },
